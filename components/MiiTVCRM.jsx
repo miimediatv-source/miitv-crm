@@ -2,6 +2,13 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
+function fmtDate(isoStr) {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  if (isNaN(d)) return isoStr.slice(0,10)
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' })
+}
+
 function parseStatus(expStr) {
   const exp = new Date(expStr)
   const d   = Math.round((exp - new Date()) / 86400000)
@@ -384,7 +391,7 @@ function EmailTemplates({ urgent, subscribers = [], onSend }) {
       : `${daysLeft}`
     return body
       .replace(/\[Name\]/g, s?.username || '[Name]')
-      .replace(/\[date\]/g, s?.expiration?.slice(0,10) || '[date]')
+      .replace(/\[date\]/g, fmtDate(s?.expiration) || '[date]')
       .replace(/\[days\]/g, daysStr)
   }
 
@@ -535,7 +542,7 @@ function EmailTemplates({ urgent, subscribers = [], onSend }) {
                     {sendTo?.sub && (
                       <div style={{ marginTop:6, fontSize:12, color:'#a78bfa' }}>
                         ✓ <strong>{sendTo.sub.username}</strong> · {sendTo.sub.email}
-                        {sendTo.sub.expiration && <span style={{ color:'#475569', marginLeft:6 }}>expires {sendTo.sub.expiration.slice(0,10)}</span>}
+                        {sendTo.sub.expiration && <span style={{ color:'#475569', marginLeft:6 }}>expires {fmtDate(sendTo.sub.expiration)}</span>}
                       </div>
                     )}
                   </div>
@@ -773,8 +780,8 @@ export default function MiiTVCRM({ user }) {
     setSyncing(true); setSyncMsg('')
     try {
       // Fetch directly from Google Sheet (works in browser + Android app)
-      const SHEET_ID = '1PyK_0gHfe59Q9V0c2gSxX6FDgDaN4hFOITgtXN1WNzw'
-      const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json'
+      const SHEET_ID = process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID || '1PyK_0gHfe59Q9V0c2gSxX6FDgDaN4hFOITgtXN1WNzw'
+      const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&gid=' + (process.env.NEXT_PUBLIC_GOOGLE_SHEET_GID || '1013400195')
       const res = await fetch(url)
       const text = await res.text()
       const json = JSON.parse(text.slice(47, -2))
@@ -792,9 +799,20 @@ export default function MiiTVCRM({ user }) {
           synced_at: new Date().toISOString(),
         }
       }).filter(s => s.id && s.username && s.expiration)
+      // Upsert all subscribers from sheet
       const { error } = await supabase.from('subscribers').upsert(subs, { onConflict: 'id' })
       if (error) throw error
-      setSyncMsg('✓ Synced ' + subs.length + ' subscribers')
+
+      // Delete any subscribers in Supabase that are no longer in the sheet
+      const sheetIds = subs.map(s => s.id)
+      const { data: existingData } = await supabase.from('subscribers').select('id')
+      const toDelete = (existingData || []).map(r => r.id).filter(id => !sheetIds.includes(id))
+      if (toDelete.length > 0) {
+        await supabase.from('subscribers').delete().in('id', toDelete)
+        setSyncMsg('✓ Synced ' + subs.length + ' subscribers · removed ' + toDelete.length + ' deleted')
+      } else {
+        setSyncMsg('✓ Synced ' + subs.length + ' subscribers')
+      }
       await loadAll()
     } catch(err) { setSyncMsg('✗ ' + err.message) }
     setSyncing(false)
@@ -874,9 +892,9 @@ export default function MiiTVCRM({ user }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          service_id:  'service_y6gmrt6',
-          template_id: 'template_1g2axdc',
-          user_id:     'RI31LgNPqydWoarYi',
+          service_id:  process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'service_y6gmrt6',
+          template_id: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || 'template_1g2axdc',
+          user_id:     process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'RI31LgNPqydWoarYi',
           template_params: {
             to_email:  form.emailTo,
             to_name:   form.emailToName || form.emailTo,
@@ -948,7 +966,7 @@ export default function MiiTVCRM({ user }) {
       const subDaysStr = subDaysLeft === null ? '' : subDaysLeft < 0 ? `${Math.abs(subDaysLeft)}` : `${subDaysLeft}`
       const body = form.emailBody
         .replace(/\[Name\]/g, sub.username || sub.email)
-        .replace(/\[date\]/g, sub.expiration?.slice(0,10) || '')
+        .replace(/\[date\]/g, fmtDate(sub.expiration) || '')
         .replace(/\[days\]/g, subDaysStr)
       const bulkEmailId = `${Date.now()}_${sub.id}`
       const bulkPixel = `<img src="${API_BASE}/api/track-open?id=${bulkEmailId}" width="1" height="1" style="display:none" alt="" />`
@@ -957,9 +975,9 @@ export default function MiiTVCRM({ user }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            service_id:  'service_y6gmrt6',
-            template_id: 'template_1g2axdc',
-            user_id:     'RI31LgNPqydWoarYi',
+            service_id:  process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'service_y6gmrt6',
+            template_id: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || 'template_1g2axdc',
+            user_id:     process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'RI31LgNPqydWoarYi',
             template_params: {
               to_email:  sub.email,
               to_name:   sub.username || sub.email,
@@ -1022,7 +1040,7 @@ export default function MiiTVCRM({ user }) {
     for (const sub of pickedSubs) {
       const body = form.emailBody
         .replace(/\[Name\]/g, sub.username || sub.email)
-        .replace(/\[date\]/g, sub.expiration?.slice(0,10) || '')
+        .replace(/\[date\]/g, fmtDate(sub.expiration) || '')
       const multiEmailId = `${Date.now()}_${sub.id}`
       const multiPixel = `<img src="${API_BASE}/api/track-open?id=${multiEmailId}" width="1" height="1" style="display:none" alt="" />`
       try {
@@ -1030,9 +1048,9 @@ export default function MiiTVCRM({ user }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            service_id:  'service_y6gmrt6',
-            template_id: 'template_1g2axdc',
-            user_id:     'RI31LgNPqydWoarYi',
+            service_id:  process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'service_y6gmrt6',
+            template_id: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || 'template_1g2axdc',
+            user_id:     process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'RI31LgNPqydWoarYi',
             template_params: {
               to_email:  sub.email,
               to_name:   sub.username || sub.email,
@@ -1083,6 +1101,19 @@ export default function MiiTVCRM({ user }) {
 
   // ── Sign out ──────────────────────────────────────────────────────────────────
   async function signOut() { await supabase.auth.signOut() }
+
+  async function deleteSubscriber(sub) {
+    if (!window.confirm('Remove ' + sub.username + ' from the CRM?\nThis cannot be undone.')) return
+    const { error } = await supabase.from('subscribers').delete().eq('id', sub.id)
+    if (!error) {
+      setSelected(null)
+      await loadAll()
+      setSyncMsg('✓ Removed ' + sub.username)
+      setTimeout(() => setSyncMsg(''), 3000)
+    } else {
+      alert('Error: ' + error.message)
+    }
+  }
 
   // ── Domain breakdown (analytics) ─────────────────────────────────────────────
   const domainCounts = useMemo(() => {
@@ -1353,7 +1384,7 @@ export default function MiiTVCRM({ user }) {
                       </div>
                       <span style={{ fontSize:12,color:'#4b5563',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</span>
                       <div style={{ display:'flex',flexDirection:'column',gap:1 }}>
-                        <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:c.daysLeft<0?'#f87171':c.daysLeft<=30?'#f59e0b':'#64748b' }}>{c.expiration?.slice(0,10)}</span>
+                        <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:c.daysLeft<0?'#f87171':c.daysLeft<=30?'#f59e0b':'#64748b' }}>{fmtDate(c.expiration)}</span>
                         <span style={{ fontSize:10,color:'#334155' }}>{c.daysLeft<0?`${Math.abs(c.daysLeft)}d ago`:`+${c.daysLeft}d`}</span>
                       </div>
                       <span style={{ fontSize:12,color:c.conns>1?'#a78bfa':'#334155',fontWeight:600,textAlign:'center' }}>{c.conns}</span>
@@ -1386,7 +1417,7 @@ export default function MiiTVCRM({ user }) {
                           border:`1px solid ${sc.border}`,padding:'3px 8px',borderRadius:6,whiteSpace:'nowrap',flexShrink:0 }}>{c.status}</span>
                       </div>
                       <div style={{ display:'flex',justifyContent:'space-between',fontSize:11,color:'#475569' }}>
-                        <span>📅 {c.expiration?.slice(0,10)} <span style={{ color:c.daysLeft<0?'#f87171':c.daysLeft<=30?'#f59e0b':'#64748b' }}>({c.daysLeft<0?`${Math.abs(c.daysLeft)}d ago`:`+${c.daysLeft}d`})</span></span>
+                        <span>📅 {fmtDate(c.expiration)} <span style={{ color:c.daysLeft<0?'#f87171':c.daysLeft<=30?'#f59e0b':'#64748b' }}>({c.daysLeft<0?`${Math.abs(c.daysLeft)}d ago`:`+${c.daysLeft}d`})</span></span>
                         <span style={{ color:'#334155' }}>ID: {c.id}</span>
                       </div>
                     </div>
@@ -1628,7 +1659,7 @@ export default function MiiTVCRM({ user }) {
                                 <div style={{ fontSize:11,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</div>
                               </div>
                               <div style={{ textAlign:'right',flexShrink:0 }}>
-                                <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",color:'#64748b' }}>{c.expiration?.slice(0,10)}</div>
+                                <div style={{ fontSize:11,fontFamily:"'DM Mono',monospace",color:'#64748b' }}>{fmtDate(c.expiration)}</div>
                                 <span style={{ fontSize:10,fontWeight:700,color:sc.text,background:sc.bg,
                                   border:`1px solid ${sc.border}`,padding:'1px 6px',borderRadius:4,display:'inline-block',marginTop:2 }}>
                                   {c.status}
@@ -2429,7 +2460,7 @@ The MiiTV Team` })
                   </div>
                   {[
                     ['Email',selected.email,true],
-                    ['Expires',selected.expiration?.slice(0,16),true],
+                    ['Expires',fmtDate(selected.expiration),false],
                     ['Time',selected.daysLeft<0?`Expired ${Math.abs(selected.daysLeft)}d ago`:`${selected.daysLeft} days remaining`,false],
                     ['Connections',String(selected.conns),false],
                   ].map(([l,v,mono])=>(
@@ -2492,6 +2523,7 @@ The MiiTV Team` })
                     <Btn onClick={()=>{ setForm({ type:'note' }); setModal('add-note') }} style={{ flex:1 }}>+ Note</Btn>
                     <Btn onClick={()=>{ setForm({ emailTo: selected.email, emailToName: selected.username, emailToSearch: selected.email }); setModal('send-email'); loadModalTemplates() }} style={{ flex:1, background:'rgba(56,189,248,.13)', color:'#38bdf8', border:'1px solid rgba(56,189,248,.25)' }}>✉️ Email</Btn>
                     <Btn onClick={()=>{ setForm({ refReferrerId: String(selected.id), refReferrerSearch: selected.username }); setModal('add-referral') }} style={{ flex:'1 1 100%', background:'rgba(167,139,250,.1)', color:'#a78bfa', border:'1px solid rgba(167,139,250,.25)', fontSize:11 }}>🎁 Link Referral</Btn>
+                    <Btn variant='danger' onClick={()=>deleteSubscriber(selected)} style={{ flex:'1 1 100%', fontSize:11 }}>🗑️ Remove from CRM</Btn>
                   </div>
                 </>
               )
@@ -2557,7 +2589,7 @@ The MiiTV Team` })
                         if (f.emailBody) {
                           newForm.emailBody = f.emailBody
                             .replace(/\[Name\]/g, match.username || match.email)
-                            .replace(/\[date\]/g, match.expiration?.slice(0,10) || '[date]')
+                            .replace(/\[date\]/g, fmtDate(match.expiration) || '[date]')
                             .replace(/\[days\]/g, daysStr)
                         }
                         return newForm
@@ -2681,7 +2713,7 @@ The MiiTV Team` })
                       : `${indDaysLeft}`
                     const body = t.body
                       .replace(/\[Name\]/g, sub?.username || form.emailToName || '[Name]')
-                      .replace(/\[date\]/g, sub?.expiration?.slice(0,10) || '[date]')
+                      .replace(/\[date\]/g, fmtDate(sub?.expiration) || '[date]')
                       .replace(/\[days\]/g, indDaysStr)
                     setForm(f => ({ ...f, emailTemplateId: val, emailSubject: t.subject, emailBody: form.sendMode==='bulk'?t.body:body }))
                   }
