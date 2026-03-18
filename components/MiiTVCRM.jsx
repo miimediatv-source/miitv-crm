@@ -123,13 +123,22 @@ function InviteUserForm() {
   async function handle() {
     if (!email) return
     setSaving(true); setMsg('')
-    // Sends a magic link / invite email via Supabase auth
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + '/dashboard' }
-    })
-    setMsg(error ? `✗ ${error.message}` : `✓ Invite sent to ${email}`)
-    if (!error) setEmail('')
+    try {
+      const res = await fetch('/api/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const data = await res.json()
+      if (data.error) {
+        setMsg('✗ ' + data.error)
+      } else {
+        setMsg('✓ Invite sent to ' + email)
+        setEmail('')
+      }
+    } catch(err) {
+      setMsg('✗ ' + err.message)
+    }
     setSaving(false)
   }
 
@@ -138,7 +147,7 @@ function InviteUserForm() {
       <Input label="Email address" type="email" placeholder="colleague@example.com" value={email} onChange={e=>setEmail(e.target.value)} />
       {msg && <div style={{ fontSize:12,color:msg.startsWith('✓')?'#34d399':'#f87171',marginBottom:10 }}>{msg}</div>}
       <Btn onClick={handle} disabled={saving} style={{ width:'100%' }}>{saving?'Sending…':'Send Invite'}</Btn>
-      <p style={{ fontSize:11,color:'#334155',marginTop:10 }}>They'll receive a magic link to set their password and access the CRM.</p>
+      <p style={{ fontSize:11,color:'#334155',marginTop:10 }}>They will receive an invite email with a link to set their password and access the CRM.</p>
     </>
   )
 }
@@ -719,8 +728,17 @@ export default function MiiTVCRM({ user }) {
   function loadModalTemplates() {
     try {
       const saved = localStorage.getItem('miitv_email_templates')
-      setModalTemplates(saved ? JSON.parse(saved) : [])
-    } catch { setModalTemplates([]) }
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Merge with defaults so built-ins are always available
+        const existingIds = new Set(parsed.map(t => t.id))
+        const missing = DEFAULT_TEMPLATES.filter(t => !existingIds.has(t.id))
+        setModalTemplates(missing.length > 0 ? [...parsed, ...missing] : parsed)
+      } else {
+        // Nothing saved yet — use all defaults
+        setModalTemplates(DEFAULT_TEMPLATES)
+      }
+    } catch { setModalTemplates(DEFAULT_TEMPLATES) }
   }
 
   // ── Enrich subscribers with computed fields ──────────────────────────────────
