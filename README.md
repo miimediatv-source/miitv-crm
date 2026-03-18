@@ -1,44 +1,69 @@
 # MiiTV CRM
 
-A full-featured Customer Relationship Management system built for MiiTV — an IPTV subscription service. Manage subscribers, track renewals, send emails, handle referrals and view financial analytics all in one place.
+A full-featured Customer Relationship Management system built for MiiTV — a UK-based IPTV subscription service. Manage subscribers, track renewals, send emails, handle referrals and view financial analytics all in one dark-themed dashboard.
 
 🌐 **Live:** [miitv-crm.vercel.app](https://miitv-crm.vercel.app)  
 📱 **Available as Android APK** via Capacitor
 
 ---
 
-## Screenshots
+## Demo
 
-### 👥 Subscribers
-View, search, filter and sort all subscribers. Click any row to open the detail panel with email, expiry, referral links and quick actions.
-
-![Subscribers](docs/screenshots/subscribers.png)
-
-### 📊 Analytics
-Status breakdown, device connection stats, top email providers, expiry-by-month chart and urgent expiry alerts.
-
-![Analytics](docs/screenshots/analytics.png)
-
-### 🎁 Referrals
-Track who referred who, manage reward milestones (1 referral = 1 month free, 6 referrals = 12 months free) and view a top referrers leaderboard.
-
-![Referrals](docs/screenshots/referrals.png)
-
-### ✉️ Emails
-Send individual or bulk emails via EmailJS with open tracking, email templates, and a full sent history log.
+![MiiTV CRM Demo](docs/miitv-crm-demo.gif)
 
 ---
 
 ## Features
 
-- **👥 Subscriber Management** — Full list with search, filter by status/connections, sortable columns, paginated
-- **📊 Analytics** — Live charts, expiry breakdown, domain stats, 14-day alert list
-- **💰 Financials** — Log revenue and costs, track net profit, monthly summaries
-- **✉️ Email** — Individual, bulk group, and pick-users send modes via EmailJS. Open tracking pixel, email history log, read receipts
-- **🎁 Referrals** — Log referrals, track milestone rewards, leaderboard, link referred customers to referrer profiles
-- **⚙️ Settings** — Company profile with logo upload, email templates (full CRUD), Google Sheet sync, team invites, change password
-- **🔒 Auth** — Supabase auth with magic link, password login, forgot password, and password reset
-- **📱 Android APK** — Packaged with Capacitor, signed release build
+### 👥 Subscribers
+- Full subscriber list with search, filter by status & connections, sortable columns
+- Click any subscriber to open a detail panel with email, expiry, referral info and quick actions
+- Clickable stat cards to instantly filter by Active / Expiring / Expired / Multi-device
+- UK date format (DD/MM/YYYY) throughout
+
+### 📊 Analytics
+- Live status breakdown (Active / Expiring Soon / Expired) with percentages
+- Device connection stats (single vs multi-device)
+- Top email providers chart
+- Expiry-by-month bar chart (clickable to filter subscribers)
+- 🚨 Urgent expiry list — subscribers expiring within 14 days
+
+### 💰 Financials
+- Log revenue and costs with categories
+- Net profit calculation and monthly summaries
+- Edit and delete entries
+
+### ✉️ Emails
+- **3 send modes:** Individual, Group/Bulk, or Pick Users
+- **Email templates** — full CRUD editor with `[Name]`, `[date]` and `[days]` placeholders
+- Open tracking pixel — see when emails are opened, how many times, and when last opened
+- Full sent email history with read receipts and resend option
+- Send directly from any template in Settings
+
+### 🎁 Referrals
+- Log who referred who with full referrer/referred tracking
+- Reward milestones: 1 referral = 1 month free, 6 referrals = 12 months free TV
+- Top referrers leaderboard with progress to milestone
+- Link referred customers directly from subscriber detail panel
+
+### ⚙️ Settings
+- **Company Profile** — logo upload, name, tagline, contact details, email signature
+- **Email Templates** — create, edit, delete with live preview and send directly
+- **Google Sheet Sync** — pull latest subscribers from Google Sheets into the database
+- **Change Password** — update your password from within the CRM
+- **Team Invites** — invite colleagues via magic link
+- **Sign Out** — available from topbar avatar dropdown
+
+### 🔒 Authentication
+- Password login and magic link (passwordless)
+- Forgot password / reset password
+- Supabase Auth with session persistence
+
+### 📱 Android App
+- Packaged as a native Android APK via Capacitor
+- Signed release builds
+- Custom MiiTV app icon
+- Mobile-responsive layout with bottom navigation
 
 ---
 
@@ -52,7 +77,6 @@ Send individual or bulk emails via EmailJS with open tracking, email templates, 
 | Email | EmailJS |
 | Deployment | Vercel |
 | Mobile | Capacitor (Android) |
-| Styling | Inline CSS + CSS classes |
 
 ---
 
@@ -95,7 +119,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | `NEXT_PUBLIC_EMAILJS_SERVICE_ID` | EmailJS service ID |
 | `NEXT_PUBLIC_EMAILJS_TEMPLATE_ID` | EmailJS template ID |
 | `NEXT_PUBLIC_EMAILJS_PUBLIC_KEY` | EmailJS public key |
-| `NEXT_PUBLIC_APP_URL` | Your deployed app URL (e.g. https://miitv-crm.vercel.app) |
+| `NEXT_PUBLIC_APP_URL` | Your deployed app URL |
 
 ---
 
@@ -112,13 +136,8 @@ Set all environment variables in Vercel dashboard under **Settings → Environme
 ### Android APK
 
 ```bash
-# 1. Build static export
 npm run build
-
-# 2. Sync to Android
 npx cap sync android
-
-# 3. Build signed release APK
 cd android
 .\gradlew assembleRelease \
   "-Pandroid.injected.signing.store.file=path/to/keystore" \
@@ -129,16 +148,16 @@ cd android
 
 ---
 
-## Database Schema
+## Database Tables
 
-The app uses Supabase with the following tables:
-
-- `subscribers` — subscriber records synced from Google Sheets
-- `revenue` — revenue entries
-- `costs` — cost entries  
-- `activity` — notes and email activity log per subscriber
-- `email_tracking` — open tracking for sent emails
-- `referrals` — referral relationships between subscribers
+| Table | Purpose |
+|---|---|
+| `subscribers` | Subscriber records synced from Google Sheets |
+| `revenue` | Revenue entries |
+| `costs` | Cost/expense entries |
+| `activity` | Notes and email activity log per subscriber |
+| `email_tracking` | Open tracking for sent emails |
+| `referrals` | Referral relationships between subscribers |
 
 ---
 
