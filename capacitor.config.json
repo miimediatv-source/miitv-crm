@@ -1,0 +1,6 @@
+﻿{
+  "appId": "com.miitv.crm",
+  "appName": "MiiTV CRM",
+  "webDir": "out",
+  "server": { "androidScheme": "https" }
+}

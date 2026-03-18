@@ -1,0 +1,20 @@
+INSTALLATION INSTRUCTIONS
+=========================
+
+1. Extract this zip
+
+2. Copy ALL folders into:
+   android\app\src\main\res\
+
+   Folders to copy:
+   - mipmap-mdpi
+   - mipmap-hdpi
+   - mipmap-xhdpi
+   - mipmap-xxhdpi
+   - mipmap-xxxhdpi
+   - mipmap-anydpi-v26
+   - values  (merge with existing - adds ic_launcher_background.xml)
+
+3. When prompted "Replace files?" → click YES to all
+
+4. Then rebuild the APK with the usual gradlew command
