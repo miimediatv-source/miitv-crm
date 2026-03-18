@@ -8,14 +8,15 @@ export async function POST(request) {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!serviceKey) {
-      return Response.json({ error: 'Server not configured' }, { status: 500 })
+      return Response.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 500 })
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    const { email } = await request.json()
+    const body = await request.json()
+    const email = body?.email
     if (!email) return Response.json({ error: 'Email required' }, { status: 400 })
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://miitv-crm.vercel.app'
