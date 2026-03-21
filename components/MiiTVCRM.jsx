@@ -664,6 +664,7 @@ export default function MiiTVCRM({ user }) {
   const [revenue, setRevenue]       = useState([])
   const [loading, setLoading]       = useState(true)
   const [syncing, setSyncing]       = useState(false)
+  const [activityNotes, setActivityNotes] = useState({}) // subscriber_id -> latest note
   const [syncMsg, setSyncMsg]       = useState('')
   const [selected, setSelected]     = useState(null)
   const [search, setSearch]         = useState('')
@@ -697,6 +698,15 @@ export default function MiiTVCRM({ user }) {
     // Load referrals
     const { data: refData } = await supabase.from('referrals').select('*').order('created_at', { ascending: false })
     setReferrals(refData || [])
+    // Load latest note per subscriber from activity table
+    const { data: notesData } = await supabase.from('activity').select('subscriber_id, note, created_at').eq('type', 'note').order('created_at', { ascending: false })
+    if (notesData) {
+      const notesMap = {}
+      notesData.forEach(n => {
+        if (!notesMap[n.subscriber_id]) notesMap[n.subscriber_id] = n.note
+      })
+      setActivityNotes(notesMap)
+    }
     setLoading(false)
   }, [])
 
@@ -752,7 +762,8 @@ export default function MiiTVCRM({ user }) {
     pal:      i % PALETTES.length,
     cost:     Number(s.cost || 0),
     profit:   Number(s.profit || 0),
-  })), [subscribers])
+    latestNote: activityNotes[s.id] || null,
+  })), [subscribers, activityNotes])
 
   // ── Stats ────────────────────────────────────────────────────────────────────
   const total    = contacts.length
@@ -1416,12 +1427,12 @@ export default function MiiTVCRM({ user }) {
                       onClick={()=>setSelected(isSel?null:c)}>
                       <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:'#334155' }}>{c.id}</span>
                       <div style={{ display:'flex',alignItems:'center',gap:8,position:'relative' }}
-                        onMouseEnter={e=>{ if(c.notes){ const t=document.createElement('div'); t.id='sub-tooltip'; t.style.cssText='position:fixed;zIndex:9999;background:#0f1521;border:1px solid rgba(255,255,255,.15);borderRadius:8;padding:8px 12px;fontSize:12;color:#94a3b8;maxWidth:220px;pointerEvents:none;boxShadow:0 4px 20px rgba(0,0,0,.5);whiteSpace:pre-wrap;lineHeight:1.5'; t.textContent=c.notes; document.body.appendChild(t); const r=e.currentTarget.getBoundingClientRect(); t.style.left=(r.left)+'px'; t.style.top=(r.bottom+4)+'px' }}}
+                        onMouseEnter={e=>{ if(c.latestNote){ const t=document.createElement('div'); t.id='sub-tooltip'; t.style.cssText='position:fixed;zIndex:9999;background:#0f1521;border:1px solid rgba(255,255,255,.15);borderRadius:8;padding:8px 12px;fontSize:12;color:#94a3b8;maxWidth:220px;pointerEvents:none;boxShadow:0 4px 20px rgba(0,0,0,.5);whiteSpace:pre-wrap;lineHeight:1.5'; t.textContent=c.latestNote; document.body.appendChild(t); const r=e.currentTarget.getBoundingClientRect(); t.style.left=(r.left)+'px'; t.style.top=(r.bottom+4)+'px' }}}
                         onMouseLeave={()=>{ const t=document.getElementById('sub-tooltip'); if(t) t.remove() }}>
                         <div style={{ width:27,height:27,borderRadius:'50%',background:abg,border:`1px solid ${atxt}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:atxt,flexShrink:0 }}>{c.avatar}</div>
                         <span style={{ fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
                           {c.username}
-                          {c.notes && <span style={{ marginLeft:4,fontSize:10,color:'#475569' }}>📝</span>}
+                          {c.latestNote && <span style={{ marginLeft:4,fontSize:10,color:'#475569' }}>📝</span>}
                         </span>
                       </div>
                       <span style={{ fontSize:12,color:'#4b5563',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</span>
@@ -1453,9 +1464,9 @@ export default function MiiTVCRM({ user }) {
                           display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:atxt,flexShrink:0 }}>{c.avatar}</div>
                         <div style={{ flex:1,minWidth:0 }}>
                           <div style={{ fontWeight:700,fontSize:14,color:'#dde4f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}
-                            title={c.notes || ''}>
+                            title={c.latestNote || ''}>
                             {c.username}
-                            {c.notes && <span style={{ marginLeft:5,fontSize:11,color:'#475569' }}>📝</span>}
+                            {c.latestNote && <span style={{ marginLeft:5,fontSize:11,color:'#475569' }}>📝</span>}
                           </div>
                           <div style={{ fontSize:11,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</div>
                         </div>
