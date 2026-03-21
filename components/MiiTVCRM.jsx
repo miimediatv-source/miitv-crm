@@ -672,6 +672,7 @@ export default function MiiTVCRM({ user }) {
   const [sortBy, setSortBy]         = useState('id')
   const [statCard, setStatCard]       = useState(null) // active stat card filter
   const [userMenu, setUserMenu]       = useState(false) // topbar user dropdown
+  const [finSort, setFinSort]         = useState({ col:'date', dir:'desc' }) // financials sort
   const [selectedSubs, setSelectedSubs] = useState([])  // hand-picked recipients for multi-select send
   const [subPickSearch, setSubPickSearch] = useState('')
   const [sortDir, setSortDir]       = useState('desc')
@@ -1508,15 +1509,32 @@ export default function MiiTVCRM({ user }) {
                 <div className="card">
                   <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
                     <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>💰 Revenue</h3>
-                    <span style={{ fontSize:12,color:'#334155' }}>{revenue.length} entries</span>
+                    <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                      <span style={{ fontSize:12,color:'#334155' }}>{revenue.length} entries</span>
+                      <select value={finSort.col==='date'&&finSort.dir} onChange={e=>setFinSort({col:'date',dir:e.target.value})}
+                        style={{ fontSize:11,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',color:'#94a3b8',borderRadius:6,padding:'2px 6px',fontFamily:'inherit',cursor:'pointer' }}>
+                        <option value="desc">Newest first</option>
+                        <option value="asc">Oldest first</option>
+                      </select>
+                      <select onChange={e=>setFinSort({col:e.target.value,dir:'desc'})}
+                        style={{ fontSize:11,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',color:'#94a3b8',borderRadius:6,padding:'2px 6px',fontFamily:'inherit',cursor:'pointer' }}>
+                        <option value="date">Sort by date</option>
+                        <option value="amount">Sort by amount</option>
+                        <option value="plan">Sort by plan</option>
+                      </select>
+                    </div>
                   </div>
                   {revenue.length === 0 ? (
                     <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>No revenue recorded yet</div>
-                  ) : revenue.map(r=>(
+                  ) : [...revenue].sort((a,b)=>{
+                      const av = finSort.col==='amount' ? Number(a.amount) : finSort.col==='plan' ? (a.plan||'') : (a.date||'')
+                      const bv = finSort.col==='amount' ? Number(b.amount) : finSort.col==='plan' ? (b.plan||'') : (b.date||'')
+                      return finSort.dir==='asc' ? (av>bv?1:-1) : (av<bv?1:-1)
+                    }).map(r=>(
                     <div key={r.id} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,.04)',gap:8 }}>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ fontSize:13,fontWeight:600,color:'#dde4f0' }}>{r.plan || 'Payment'}</div>
-                        <div style={{ fontSize:11,color:'#475569' }}>{r.date}{r.notes && ` · ${r.notes}`}</div>
+                        <div style={{ fontSize:11,color:'#475569' }}>{fmtDate(r.date)}{r.notes && ' · '+r.notes}</div>
                       </div>
                       <span style={{ color:'#34d399',fontWeight:700,fontSize:13,flexShrink:0 }}>{fmt(r.amount)}</span>
                       <div style={{ display:'flex',gap:4,flexShrink:0 }}>
@@ -1533,15 +1551,27 @@ export default function MiiTVCRM({ user }) {
                 <div className="card">
                   <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
                     <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>💸 Costs</h3>
-                    <span style={{ fontSize:12,color:'#334155' }}>{costs.length} entries</span>
+                    <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                      <span style={{ fontSize:12,color:'#334155' }}>{costs.length} entries</span>
+                      <select onChange={e=>setFinSort({col:e.target.value,dir:finSort.dir})}
+                        style={{ fontSize:11,background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',color:'#94a3b8',borderRadius:6,padding:'2px 6px',fontFamily:'inherit',cursor:'pointer' }}>
+                        <option value="date">Sort by date</option>
+                        <option value="amount">Sort by amount</option>
+                        <option value="category">Sort by category</option>
+                      </select>
+                    </div>
                   </div>
                   {costs.length === 0 ? (
                     <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>No costs recorded yet</div>
-                  ) : costs.map(c=>(
+                  ) : [...costs].sort((a,b)=>{
+                      const av = finSort.col==='amount' ? Number(a.amount) : finSort.col==='category' ? (a.category||'') : (a.date||'')
+                      const bv = finSort.col==='amount' ? Number(b.amount) : finSort.col==='category' ? (b.category||'') : (b.date||'')
+                      return finSort.dir==='asc' ? (av>bv?1:-1) : (av<bv?1:-1)
+                    }).map(c=>(
                     <div key={c.id} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,.04)',gap:8 }}>
                       <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ fontSize:13,fontWeight:600,color:'#dde4f0' }}>{c.category}</div>
-                        <div style={{ fontSize:11,color:'#475569' }}>{c.date}{c.description && ` · ${c.description}`}</div>
+                        <div style={{ fontSize:11,color:'#475569' }}>{fmtDate(c.date)}{c.description && ' · '+c.description}</div>
                       </div>
                       <span style={{ color:'#f87171',fontWeight:700,fontSize:13,flexShrink:0 }}>{fmt(c.amount)}</span>
                       <div style={{ display:'flex',gap:4,flexShrink:0 }}>
@@ -1554,6 +1584,57 @@ export default function MiiTVCRM({ user }) {
                   ))}
                 </div>
               </div>
+
+              {/* Subscriber financials table */}
+              {contacts.some(c => c.cost > 0 || c.profit > 0) && (()=>{
+                const sorted = [...contacts].filter(c => c.cost > 0 || c.profit > 0)
+                return (
+                  <div className="card" style={{ marginBottom:16 }}>
+                    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
+                      <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>👥 Subscriber Financials</h3>
+                      <span style={{ fontSize:12,color:'#334155' }}>{sorted.length} subscribers · {fmt(subRevenue)} revenue · {fmt(subCosts)} costs</span>
+                    </div>
+                    <div style={{ overflowX:'auto' }}>
+                      <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
+                        <thead>
+                          <tr style={{ borderBottom:'1px solid rgba(255,255,255,.08)' }}>
+                            {[['Username','username'],['Email','email'],['Expiry','expiration'],['Cost','cost'],['Profit','profit'],['Net','net']].map(([lbl,col])=>(
+                              <th key={col} onClick={()=>setFinSort(s=>({col,dir:s.col===col&&s.dir==='desc'?'asc':'desc'}))}
+                                style={{ textAlign:'left',padding:'6px 10px',color:'#475569',fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',userSelect:'none' }}>
+                                {lbl} {finSort.col===col?(finSort.dir==='asc'?'↑':'↓'):''}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...sorted].sort((a,b)=>{
+                            const col = finSort.col
+                            const av = col==='cost'?Number(a.cost):col==='profit'?Number(a.profit):col==='net'?(Number(a.profit)-Number(a.cost)):col==='expiration'?(a.expiration||''):(a[col]||'')
+                            const bv = col==='cost'?Number(b.cost):col==='profit'?Number(b.profit):col==='net'?(Number(b.profit)-Number(b.cost)):col==='expiration'?(b.expiration||''):(b[col]||'')
+                            return finSort.dir==='asc'?(av>bv?1:-1):(av<bv?1:-1)
+                          }).slice(0,50).map(c=>{
+                            const net = Number(c.profit||0) - Number(c.cost||0)
+                            const sc = parseStatus(c.expiration)
+                            return (
+                              <tr key={c.id} style={{ borderBottom:'1px solid rgba(255,255,255,.03)',cursor:'pointer' }} onClick={()=>{ setView('subscribers'); setSelected(c) }}>
+                                <td style={{ padding:'6px 10px',color:'#dde4f0',fontWeight:600 }}>{c.username}</td>
+                                <td style={{ padding:'6px 10px',color:'#475569',fontFamily:"'DM Mono',monospace",fontSize:11 }}>{c.email}</td>
+                                <td style={{ padding:'6px 10px',whiteSpace:'nowrap' }}>
+                                  <span style={{ color:sc==='Expired'?'#f87171':sc==='Expiring Soon'?'#f59e0b':'#64748b' }}>{fmtDate(c.expiration)}</span>
+                                </td>
+                                <td style={{ padding:'6px 10px',color:'#f87171',fontWeight:600 }}>{fmt(c.cost)}</td>
+                                <td style={{ padding:'6px 10px',color:'#34d399',fontWeight:600 }}>{fmt(c.profit)}</td>
+                                <td style={{ padding:'6px 10px',fontWeight:700,color:net>=0?'#34d399':'#f87171' }}>{fmt(net)}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                      {sorted.length > 50 && <div style={{ textAlign:'center',padding:'8px',fontSize:11,color:'#475569' }}>Showing 50 of {sorted.length}</div>}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Cost by category */}
               {costByCategory.length > 0 && (
