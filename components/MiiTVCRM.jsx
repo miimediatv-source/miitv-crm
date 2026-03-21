@@ -771,8 +771,15 @@ export default function MiiTVCRM({ user }) {
   const totalRevenue  = manualRevenue + subRevenue
   const totalCosts    = manualCosts + subCosts
   const profit        = totalRevenue - totalCosts
-  const thisMonthRev  = revenue.filter(r => r.date?.slice(0,7) === new Date().toISOString().slice(0,7)).reduce((s,r)=>s+Number(r.amount),0)
-  const thisMonthCost = costs.filter(c => c.date?.slice(0,7) === new Date().toISOString().slice(0,7)).reduce((s,c)=>s+Number(c.amount),0)
+  const thisMonthKey   = new Date().toISOString().slice(0,7)
+  const manualThisRev  = revenue.filter(r => r.date?.slice(0,7) === thisMonthKey).reduce((s,r)=>s+Number(r.amount),0)
+  const manualThisCost = costs.filter(c => c.date?.slice(0,7) === thisMonthKey).reduce((s,c)=>s+Number(c.amount),0)
+  // Subscribers expiring this month
+  const subThisMonth   = contacts.filter(c => c.expiration?.slice(0,7) === thisMonthKey)
+  const subThisRev     = subThisMonth.reduce((s,c) => s + Number(c.profit || 0), 0)
+  const subThisCost    = subThisMonth.reduce((s,c) => s + Number(c.cost || 0), 0)
+  const thisMonthRev   = manualThisRev + subThisRev
+  const thisMonthCost  = manualThisCost + subThisCost
 
   // ── Filtered / sorted subscribers ────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -1486,7 +1493,7 @@ export default function MiiTVCRM({ user }) {
                   { label:'Total Revenue',value:fmt(totalRevenue),sub:subRevenue>0?fmt(manualRevenue)+' manual + '+fmt(subRevenue)+' subs':null,color:'#34d399',icon:'💰' },
                   { label:'Total Costs',value:fmt(totalCosts),sub:subCosts>0?fmt(manualCosts)+' manual + '+fmt(subCosts)+' subs':null,color:'#f87171',icon:'💸' },
                   { label:'Net Profit',value:fmt(profit),color:profit>=0?'#34d399':'#f87171',icon:'📈' },
-                  { label:'This Month',value:fmt(thisMonthRev-thisMonthCost),color:(thisMonthRev-thisMonthCost)>=0?'#34d399':'#f87171',icon:'📅' },
+                  { label:'This Month',value:fmt(thisMonthRev-thisMonthCost),sub:subThisMonth.length>0?subThisMonth.length+' subs expiring · '+fmt(subThisRev)+' rev':null,color:(thisMonthRev-thisMonthCost)>=0?'#34d399':'#f87171',icon:'📅' },
                 ].map(s=>(
                   <div key={s.label} className="card">
                     <div style={{ fontSize:10.5,color:'#475569',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6 }}>{s.icon} {s.label}</div>
@@ -1559,6 +1566,59 @@ export default function MiiTVCRM({ user }) {
                         <div style={{ fontSize:16,fontWeight:700,color:'#f87171' }}>{fmt(amt)}</div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Subscriber Cost / Profit Breakdown ── */}
+              {contacts.filter(c => c.cost > 0 || c.profit > 0).length > 0 && (
+                <div className="card" style={{ marginTop:16 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                    <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>👥 Subscriber Cost / Profit Breakdown</h3>
+                    <div style={{ fontSize:11,color:'#475569' }}>{contacts.filter(c=>c.cost>0||c.profit>0).length} subscribers</div>
+                  </div>
+                  {/* Summary totals row */}
+                  <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12,padding:'10px 12px',background:'rgba(255,255,255,.03)',borderRadius:8 }}>
+                    <div>
+                      <div style={{ fontSize:10,color:'#475569',fontWeight:700,marginBottom:2 }}>TOTAL COST</div>
+                      <div style={{ fontSize:16,fontWeight:800,color:'#f87171' }}>{fmt(subCosts)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:10,color:'#475569',fontWeight:700,marginBottom:2 }}>TOTAL REVENUE</div>
+                      <div style={{ fontSize:16,fontWeight:800,color:'#34d399' }}>{fmt(subRevenue)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:10,color:'#475569',fontWeight:700,marginBottom:2 }}>NET PROFIT</div>
+                      <div style={{ fontSize:16,fontWeight:800,color:(subRevenue-subCosts)>=0?'#34d399':'#f87171' }}>{fmt(subRevenue-subCosts)}</div>
+                    </div>
+                  </div>
+                  {/* Table header */}
+                  <div style={{ display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:8,padding:'6px 10px',background:'rgba(255,255,255,.03)',borderRadius:6,marginBottom:4 }}>
+                    {['Subscriber','Cost','Revenue','Profit'].map(h=>(
+                      <div key={h} style={{ fontSize:10,color:'#475569',fontWeight:700,textTransform:'uppercase' }}>{h}</div>
+                    ))}
+                  </div>
+                  {/* Subscriber rows - sortable by profit */}
+                  <div style={{ maxHeight:400,overflowY:'auto' }}>
+                    {[...contacts]
+                      .filter(c => c.cost > 0 || c.profit > 0)
+                      .sort((a,b) => (b.profit - b.cost) - (a.profit - a.cost))
+                      .map(c => {
+                        const net = c.profit - c.cost
+                        return (
+                          <div key={c.id} style={{ display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:8,padding:'7px 10px',borderBottom:'1px solid rgba(255,255,255,.04)',alignItems:'center',cursor:'pointer' }}
+                            onClick={()=>{ setSelected(c); setView('subscribers') }}>
+                            <div>
+                              <div style={{ fontSize:12,fontWeight:600,color:'#dde4f0' }}>{c.username}</div>
+                              <div style={{ fontSize:10,color:'#475569' }}>{c.email}</div>
+                            </div>
+                            <div style={{ fontSize:12,color:'#f87171',fontWeight:600 }}>{fmt(c.cost)}</div>
+                            <div style={{ fontSize:12,color:'#34d399',fontWeight:600 }}>{fmt(c.profit)}</div>
+                            <div style={{ fontSize:12,fontWeight:700,color:net>=0?'#34d399':'#f87171' }}>{fmt(net)}</div>
+                          </div>
+                        )
+                      })
+                    }
                   </div>
                 </div>
               )}
