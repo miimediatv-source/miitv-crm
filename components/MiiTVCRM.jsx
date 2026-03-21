@@ -761,8 +761,15 @@ export default function MiiTVCRM({ user }) {
   const multi    = contacts.filter(c => c.conns > 1).length
   const urgent   = contacts.filter(c => c.daysLeft >= 0 && c.daysLeft <= 14)
 
-  const totalRevenue  = revenue.reduce((s, r) => s + Number(r.amount), 0)
-  const totalCosts    = costs.reduce((s, c) => s + Number(c.amount), 0)
+  // Manual entries
+  const manualRevenue = revenue.reduce((s, r) => s + Number(r.amount), 0)
+  const manualCosts   = costs.reduce((s, c) => s + Number(c.amount), 0)
+  // Subscriber totals from sheet
+  const subRevenue    = contacts.reduce((s, c) => s + Number(c.profit || 0), 0)
+  const subCosts      = contacts.reduce((s, c) => s + Number(c.cost || 0), 0)
+  // Combined
+  const totalRevenue  = manualRevenue + subRevenue
+  const totalCosts    = manualCosts + subCosts
   const profit        = totalRevenue - totalCosts
   const thisMonthRev  = revenue.filter(r => r.date?.slice(0,7) === new Date().toISOString().slice(0,7)).reduce((s,r)=>s+Number(r.amount),0)
   const thisMonthCost = costs.filter(c => c.date?.slice(0,7) === new Date().toISOString().slice(0,7)).reduce((s,c)=>s+Number(c.amount),0)
@@ -1476,14 +1483,15 @@ export default function MiiTVCRM({ user }) {
               {/* Summary cards */}
               <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20 }}>
                 {[
-                  { label:'Total Revenue',value:fmt(totalRevenue),color:'#34d399',icon:'💰' },
-                  { label:'Total Costs',value:fmt(totalCosts),color:'#f87171',icon:'💸' },
+                  { label:'Total Revenue',value:fmt(totalRevenue),sub:subRevenue>0?fmt(manualRevenue)+' manual + '+fmt(subRevenue)+' subs':null,color:'#34d399',icon:'💰' },
+                  { label:'Total Costs',value:fmt(totalCosts),sub:subCosts>0?fmt(manualCosts)+' manual + '+fmt(subCosts)+' subs':null,color:'#f87171',icon:'💸' },
                   { label:'Net Profit',value:fmt(profit),color:profit>=0?'#34d399':'#f87171',icon:'📈' },
                   { label:'This Month',value:fmt(thisMonthRev-thisMonthCost),color:(thisMonthRev-thisMonthCost)>=0?'#34d399':'#f87171',icon:'📅' },
                 ].map(s=>(
                   <div key={s.label} className="card">
                     <div style={{ fontSize:10.5,color:'#475569',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6 }}>{s.icon} {s.label}</div>
                     <div style={{ fontSize:22,fontWeight:800,color:s.color,letterSpacing:'-.5px' }}>{s.value}</div>
+                    {s.sub && <div style={{ fontSize:10,color:'#475569',marginTop:3 }}>{s.sub}</div>}
                   </div>
                 ))}
               </div>
