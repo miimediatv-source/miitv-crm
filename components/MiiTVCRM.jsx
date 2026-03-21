@@ -2680,12 +2680,31 @@ The MiiTV Team` })
 
       {modal === 'send-email' && (() => {
         // ── Compute group lists ──
+        // Build month groups from subscriber expiry dates
+        const monthGroups = (() => {
+          const months = {}
+          contacts.forEach(c => {
+            if (!c.expiration) return
+            const key = c.expiration.slice(0,7)
+            if (!months[key]) months[key] = []
+            months[key].push(c)
+          })
+          return Object.keys(months).sort().map(key => {
+            const d = new Date(key + '-01')
+            const label = d.toLocaleDateString('en-GB', { month:'long', year:'numeric' })
+            const now = new Date().toISOString().slice(0,7)
+            const tag = key === now ? ' (This Month)' : key < now ? ' (Expired)' : ''
+            return { id:'month_'+key, label:'📅 '+label+tag, color:'#60a5fa', subs: months[key], month: key }
+          })
+        })()
+
         const groupDefs = [
           { id:'expiring14', label:'⚠️ Expiring in 14 days',  color:'#f59e0b', subs: contacts.filter(c => c.daysLeft >= 0 && c.daysLeft <= 14) },
           { id:'expiring30', label:'🟡 Expiring in 30 days',  color:'#f59e0b', subs: contacts.filter(c => c.daysLeft >= 0 && c.daysLeft <= 30) },
           { id:'expired',    label:'❌ Expired subscribers',  color:'#f87171', subs: contacts.filter(c => c.status === 'Expired') },
           { id:'active',     label:'✅ All active',           color:'#34d399', subs: contacts.filter(c => c.status === 'Active') },
           { id:'all',        label:'👥 All subscribers',      color:'#60a5fa', subs: contacts },
+          ...monthGroups,
         ]
         const isBulk = !!form.bulkGroup
         const bulkGroup = groupDefs.find(g => g.id === form.bulkGroup)
@@ -2761,8 +2780,9 @@ The MiiTV Team` })
             {form.sendMode === 'bulk' && (
               <div style={{ marginBottom:12 }}>
                 <label style={{ display:'block',fontSize:11,color:'#475569',fontWeight:700,marginBottom:8 }}>Send to Group</label>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
-                  {groupDefs.map(g => (
+                {/* Standard groups */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7, marginBottom:10 }}>
+                  {groupDefs.filter(g => !g.id.startsWith('month_')).map(g => (
                     <button key={g.id}
                       onClick={() => setForm(f => ({ ...f, bulkGroup: g.id, bulkStatus: undefined, bulkDone: 0 }))}
                       style={{ cursor:'pointer', padding:'10px 12px', borderRadius:9, fontFamily:'inherit', fontSize:12, fontWeight:600,
@@ -2775,6 +2795,36 @@ The MiiTV Team` })
                     </button>
                   ))}
                 </div>
+                {/* Month groups */}
+                {monthGroups.length > 0 && (
+                  <>
+                    <div style={{ fontSize:10,color:'#475569',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6 }}>📅 By Expiry Month</div>
+                    <div style={{ maxHeight:200,overflowY:'auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:5 }}>
+                      {monthGroups.map(g => {
+                        const isSelected = form.bulkGroup === g.id
+                        const now = new Date().toISOString().slice(0,7)
+                        const isPast = g.month < now
+                        const isCurrent = g.month === now
+                        return (
+                          <button key={g.id}
+                            onClick={() => setForm(f => ({ ...f, bulkGroup: g.id, bulkStatus: undefined, bulkDone: 0 }))}
+                            style={{ cursor:'pointer', padding:'8px 10px', borderRadius:8, fontFamily:'inherit', fontSize:11, fontWeight:600,
+                              textAlign:'left', border:'1px solid',
+                              background: isSelected ? 'rgba(96,165,250,.1)' : isCurrent ? 'rgba(96,165,250,.04)' : 'rgba(255,255,255,.02)',
+                              borderColor: isSelected ? '#60a5fa55' : isCurrent ? 'rgba(96,165,250,.2)' : 'rgba(255,255,255,.06)',
+                              color: isSelected ? '#60a5fa' : isPast ? '#334155' : '#94a3b8' }}>
+                            <div style={{ display:'flex',alignItems:'center',gap:4 }}>
+                              {g.label.replace('📅 ','')}
+                              {isCurrent && <span style={{ fontSize:9,fontWeight:700,color:'#60a5fa',background:'rgba(96,165,250,.15)',padding:'1px 4px',borderRadius:3 }}>NOW</span>}
+                            </div>
+                            <div style={{ fontSize:10,opacity:.7,marginTop:1 }}>{g.subs.length} subscriber{g.subs.length!==1?'s':''}</div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+                <div style={{ height:8 }} />
                 {bulkGroup && (
                   <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(255,255,255,.03)', borderRadius:8, fontSize:12, color:'#475569' }}>
                     <strong style={{color:'#dde4f0'}}>{recipients.length}</strong> emails will be sent · <span style={{color:'#334155'}}>Use [Name] and [date] in body — personalised per recipient</span>
