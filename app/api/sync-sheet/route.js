@@ -7,7 +7,7 @@ export async function POST() {
     const res = await fetch('https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&gid=1013400195')
     const text = await res.text()
     const json = JSON.parse(text.slice(47, -2))
-    const subscribers = json.table.rows.map(r => { const raw = r.c[1]?.v ?? ''; const parts = raw.split('\n'); const expRaw = r.c[2]?.f ?? r.c[2]?.v ?? null; return { id: Number(r.c[0]?.v), username: parts[0] ?? '', email: parts[1] ?? '', expiration: expRaw ? new Date(expRaw).toISOString() : null, conns: Number(r.c[3]?.v ?? 1), synced_at: new Date().toISOString() } }).filter(s => s.id && s.username && s.expiration)
+    const subscribers = json.table.rows.map(r => { const raw = r.c[1]?.v ?? ''; const parts = raw.split('\n'); const expRaw = r.c[2]?.f ?? r.c[2]?.v ?? null; return { id: Number(r.c[0]?.v), username: parts[0] ?? '', email: parts[1] ?? '', expiration: expRaw ? new Date(expRaw).toISOString() : null, conns: Number(r.c[3]?.v ?? 1), cost: Number(r.c[4]?.v ?? 0), profit: Number(r.c[5]?.v ?? 0), synced_at: new Date().toISOString() } }).filter(s => s.id && s.username && s.expiration)
     const { error } = await supabase.from('subscribers').upsert(subscribers, { onConflict: 'id' })
     if (error) throw error
     const { data: existing } = await supabase.from('subscribers').select('id')
