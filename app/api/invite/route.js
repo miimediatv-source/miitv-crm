@@ -30,7 +30,7 @@ export async function POST(request) {
     if (!inviteLink) return Response.json({ error: 'Could not generate invite link' }, { status: 500 })
 
     const resendKey = process.env.RESEND_API_KEY
-    if (!resendKey) return Response.json({ error: 'RESEND_API_KEY not set' }, { status: 500 })
+    if (!resendKey) return Response.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 })
 
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -44,7 +44,7 @@ export async function POST(request) {
     })
 
     const emailData = await emailRes.json()
-    if (emailData.error) return Response.json({ error: emailData.error }, { status: 400 })
+    if (emailData.error) return Response.json({ error: 'Resend error: ' + emailData.error }, { status: 400 })
 
     return Response.json({ success: true, email })
   } catch (err) {
