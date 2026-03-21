@@ -749,6 +749,8 @@ export default function MiiTVCRM({ user }) {
     domain:   getDomain(s.email),
     avatar:   mkAvatar(s.username),
     pal:      i % PALETTES.length,
+    cost:     Number(s.cost || 0),
+    profit:   Number(s.profit || 0),
   })), [subscribers])
 
   // ── Stats ────────────────────────────────────────────────────────────────────
@@ -814,6 +816,8 @@ export default function MiiTVCRM({ user }) {
           email: parts[1] ?? '',
           expiration: expRaw ? new Date(expRaw).toISOString() : null,
           conns: Number(r.c[3]?.v ?? 1),
+          cost: Number(r.c[4]?.v ?? 0),
+          profit: Number(r.c[5]?.v ?? 0),
           synced_at: new Date().toISOString(),
         }
       }).filter(s => s.id && s.username && s.expiration)
@@ -2481,6 +2485,8 @@ The MiiTV Team` })
                     ['Expires',fmtDate(selected.expiration),false],
                     ['Time',selected.daysLeft<0?`Expired ${Math.abs(selected.daysLeft)}d ago`:`${selected.daysLeft} days remaining`,false],
                     ['Connections',String(selected.conns),false],
+                    ['Cost',selected.cost ? '£' + Number(selected.cost).toFixed(2) : '—',false],
+                    ['Profit',selected.profit ? '£' + Number(selected.profit).toFixed(2) : '—',false],
                   ].map(([l,v,mono])=>(
                     <div key={l} style={{ marginBottom:9,padding:'9px 11px',background:'rgba(255,255,255,.02)',borderRadius:8,border:'1px solid rgba(255,255,255,.05)' }}>
                       <div style={{ fontSize:10.5,color:'#475569',fontWeight:700,marginBottom:3 }}>{l}</div>
