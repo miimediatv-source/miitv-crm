@@ -1415,9 +1415,14 @@ export default function MiiTVCRM({ user }) {
                       style={{ display:'grid',gridTemplateColumns:'70px 1.8fr 2fr 1.6fr 60px 115px',gap:8,padding:'9px 14px',borderBottom:'1px solid rgba(255,255,255,.04)',alignItems:'center',background:isSel?'rgba(96,165,250,.07)':'transparent' }}
                       onClick={()=>setSelected(isSel?null:c)}>
                       <span style={{ fontFamily:"'DM Mono',monospace",fontSize:11,color:'#334155' }}>{c.id}</span>
-                      <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                      <div style={{ display:'flex',alignItems:'center',gap:8,position:'relative' }}
+                        onMouseEnter={e=>{ if(c.notes){ const t=document.createElement('div'); t.id='sub-tooltip'; t.style.cssText='position:fixed;zIndex:9999;background:#0f1521;border:1px solid rgba(255,255,255,.15);borderRadius:8;padding:8px 12px;fontSize:12;color:#94a3b8;maxWidth:220px;pointerEvents:none;boxShadow:0 4px 20px rgba(0,0,0,.5);whiteSpace:pre-wrap;lineHeight:1.5'; t.textContent=c.notes; document.body.appendChild(t); const r=e.currentTarget.getBoundingClientRect(); t.style.left=(r.left)+'px'; t.style.top=(r.bottom+4)+'px' }}}
+                        onMouseLeave={()=>{ const t=document.getElementById('sub-tooltip'); if(t) t.remove() }}>
                         <div style={{ width:27,height:27,borderRadius:'50%',background:abg,border:`1px solid ${atxt}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:atxt,flexShrink:0 }}>{c.avatar}</div>
-                        <span style={{ fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.username}</span>
+                        <span style={{ fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+                          {c.username}
+                          {c.notes && <span style={{ marginLeft:4,fontSize:10,color:'#475569' }}>📝</span>}
+                        </span>
                       </div>
                       <span style={{ fontSize:12,color:'#4b5563',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</span>
                       <div style={{ display:'flex',flexDirection:'column',gap:1 }}>
@@ -1447,7 +1452,11 @@ export default function MiiTVCRM({ user }) {
                         <div style={{ width:36,height:36,borderRadius:'50%',background:abg,border:`1px solid ${atxt}44`,
                           display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:atxt,flexShrink:0 }}>{c.avatar}</div>
                         <div style={{ flex:1,minWidth:0 }}>
-                          <div style={{ fontWeight:700,fontSize:14,color:'#dde4f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.username}</div>
+                          <div style={{ fontWeight:700,fontSize:14,color:'#dde4f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}
+                            title={c.notes || ''}>
+                            {c.username}
+                            {c.notes && <span style={{ marginLeft:5,fontSize:11,color:'#475569' }}>📝</span>}
+                          </div>
                           <div style={{ fontSize:11,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</div>
                         </div>
                         <span style={{ fontSize:11,fontWeight:700,color:sc.text,background:sc.bg,
