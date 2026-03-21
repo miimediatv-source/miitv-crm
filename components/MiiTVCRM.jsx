@@ -1586,52 +1586,78 @@ export default function MiiTVCRM({ user }) {
               </div>
 
               {/* Subscriber financials table */}
-              {contacts.some(c => c.cost > 0 || c.profit > 0) && (()=>{
-                const sorted = [...contacts].filter(c => c.cost > 0 || c.profit > 0)
+              {/* Subscriber Profit by Month */}
+              {contacts.some(c => c.profit > 0) && (()=>{
+                // Group subscribers by expiry month
+                const byMonth = {}
+                contacts.filter(c => c.profit > 0).forEach(c => {
+                  const key = c.expiration?.slice(0,7)
+                  if (!key) return
+                  if (!byMonth[key]) byMonth[key] = { subs: [], total: 0 }
+                  byMonth[key].subs.push(c)
+                  byMonth[key].total += Number(c.profit || 0)
+                })
+                const months = Object.keys(byMonth).sort()
+                const [expandedMonth, setExpandedMonth] = [finSort.expandedMonth || null, (m) => setFinSort(s=>({...s, expandedMonth: m}))]
                 return (
                   <div className="card" style={{ marginBottom:16 }}>
                     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
-                      <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>👥 Subscriber Financials</h3>
-                      <span style={{ fontSize:12,color:'#334155' }}>{sorted.length} subscribers · {fmt(subRevenue)} revenue · {fmt(subCosts)} costs</span>
+                      <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>👥 Subscriber Profit by Month</h3>
+                      <span style={{ fontSize:12,color:'#334155' }}>{contacts.filter(c=>c.profit>0).length} subscribers · {fmt(subRevenue)} total</span>
                     </div>
-                    <div style={{ overflowX:'auto' }}>
-                      <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12 }}>
-                        <thead>
-                          <tr style={{ borderBottom:'1px solid rgba(255,255,255,.08)' }}>
-                            {[['Username','username'],['Email','email'],['Expiry','expiration'],['Cost','cost'],['Profit','profit'],['Net','net']].map(([lbl,col])=>(
-                              <th key={col} onClick={()=>setFinSort(s=>({col,dir:s.col===col&&s.dir==='desc'?'asc':'desc'}))}
-                                style={{ textAlign:'left',padding:'6px 10px',color:'#475569',fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',userSelect:'none' }}>
-                                {lbl} {finSort.col===col?(finSort.dir==='asc'?'↑':'↓'):''}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[...sorted].sort((a,b)=>{
-                            const col = finSort.col
-                            const av = col==='cost'?Number(a.cost):col==='profit'?Number(a.profit):col==='net'?(Number(a.profit)-Number(a.cost)):col==='expiration'?(a.expiration||''):(a[col]||'')
-                            const bv = col==='cost'?Number(b.cost):col==='profit'?Number(b.profit):col==='net'?(Number(b.profit)-Number(b.cost)):col==='expiration'?(b.expiration||''):(b[col]||'')
-                            return finSort.dir==='asc'?(av>bv?1:-1):(av<bv?1:-1)
-                          }).slice(0,50).map(c=>{
-                            const net = Number(c.profit||0) - Number(c.cost||0)
-                            const sc = parseStatus(c.expiration)
-                            return (
-                              <tr key={c.id} style={{ borderBottom:'1px solid rgba(255,255,255,.03)',cursor:'pointer' }} onClick={()=>{ setView('subscribers'); setSelected(c) }}>
-                                <td style={{ padding:'6px 10px',color:'#dde4f0',fontWeight:600 }}>{c.username}</td>
-                                <td style={{ padding:'6px 10px',color:'#475569',fontFamily:"'DM Mono',monospace",fontSize:11 }}>{c.email}</td>
-                                <td style={{ padding:'6px 10px',whiteSpace:'nowrap' }}>
-                                  <span style={{ color:sc==='Expired'?'#f87171':sc==='Expiring Soon'?'#f59e0b':'#64748b' }}>{fmtDate(c.expiration)}</span>
-                                </td>
-                                <td style={{ padding:'6px 10px',color:'#f87171',fontWeight:600 }}>{fmt(c.cost)}</td>
-                                <td style={{ padding:'6px 10px',color:'#34d399',fontWeight:600 }}>{fmt(c.profit)}</td>
-                                <td style={{ padding:'6px 10px',fontWeight:700,color:net>=0?'#34d399':'#f87171' }}>{fmt(net)}</td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                      {sorted.length > 50 && <div style={{ textAlign:'center',padding:'8px',fontSize:11,color:'#475569' }}>Showing 50 of {sorted.length}</div>}
-                    </div>
+                    {months.map(month => {
+                      const { subs, total } = byMonth[month]
+                      const d = new Date(month + '-01')
+                      const label = d.toLocaleDateString('en-GB', { month:'long', year:'numeric' })
+                      const isExpanded = expandedMonth === month
+                      const now = new Date().toISOString().slice(0,7)
+                      const isPast = month < now
+                      const isCurrent = month === now
+                      return (
+                        <div key={month} style={{ marginBottom:4 }}>
+                          {/* Month header row - clickable to expand */}
+                          <div onClick={()=>setExpandedMonth(isExpanded ? null : month)}
+                            style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 12px',background:'rgba(255,255,255,.03)',borderRadius:8,cursor:'pointer',border:`1px solid ${isCurrent?'rgba(96,165,250,.25)':'rgba(255,255,255,.06)'}` }}>
+                            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                              <span style={{ fontSize:13,fontWeight:700,color:isPast?'#475569':isCurrent?'#60a5fa':'#dde4f0' }}>{label}</span>
+                              <span style={{ fontSize:11,color:'#475569' }}>{subs.length} subscriber{subs.length!==1?'s':''}</span>
+                              {isCurrent && <span style={{ fontSize:10,fontWeight:700,color:'#60a5fa',background:'rgba(96,165,250,.1)',padding:'1px 6px',borderRadius:4 }}>THIS MONTH</span>}
+                              {isPast && <span style={{ fontSize:10,color:'#334155' }}>Expired</span>}
+                            </div>
+                            <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+                              <span style={{ fontSize:14,fontWeight:800,color:'#34d399' }}>{fmt(total)}</span>
+                              <span style={{ fontSize:11,color:'#475569' }}>{isExpanded?'▲':'▼'}</span>
+                            </div>
+                          </div>
+                          {/* Expanded subscriber list */}
+                          {isExpanded && (
+                            <div style={{ border:'1px solid rgba(255,255,255,.06)',borderTop:'none',borderRadius:'0 0 8px 8px',overflow:'hidden' }}>
+                              <div style={{ display:'grid',gridTemplateColumns:'2fr 2fr 1fr 1fr',gap:8,padding:'6px 12px',background:'rgba(255,255,255,.02)' }}>
+                                {['Username','Email','Expires','Profit'].map(h=>(
+                                  <div key={h} style={{ fontSize:10,color:'#475569',fontWeight:700,textTransform:'uppercase' }}>{h}</div>
+                                ))}
+                              </div>
+                              {[...subs].sort((a,b)=>a.expiration>b.expiration?1:-1).map(c=>{
+                                const sc = parseStatus(c.expiration)
+                                return (
+                                  <div key={c.id} onClick={()=>{ setView('subscribers'); setSelected(c) }}
+                                    style={{ display:'grid',gridTemplateColumns:'2fr 2fr 1fr 1fr',gap:8,padding:'7px 12px',borderTop:'1px solid rgba(255,255,255,.04)',cursor:'pointer',alignItems:'center' }}>
+                                    <div style={{ fontSize:12,fontWeight:600,color:'#dde4f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.username}</div>
+                                    <div style={{ fontSize:11,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</div>
+                                    <div style={{ fontSize:11,color:sc==='Expired'?'#f87171':sc==='Expiring Soon'?'#f59e0b':'#64748b',whiteSpace:'nowrap' }}>{fmtDate(c.expiration)}</div>
+                                    <div style={{ fontSize:12,fontWeight:700,color:'#34d399' }}>{fmt(c.profit)}</div>
+                                  </div>
+                                )
+                              })}
+                              <div style={{ padding:'8px 12px',background:'rgba(52,211,153,.05)',borderTop:'1px solid rgba(52,211,153,.1)',display:'flex',justifyContent:'space-between' }}>
+                                <span style={{ fontSize:11,color:'#475569' }}>Month total</span>
+                                <span style={{ fontSize:13,fontWeight:800,color:'#34d399' }}>{fmt(total)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )
               })()}
@@ -1647,59 +1673,6 @@ export default function MiiTVCRM({ user }) {
                         <div style={{ fontSize:16,fontWeight:700,color:'#f87171' }}>{fmt(amt)}</div>
                       </div>
                     ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Subscriber Cost / Profit Breakdown ── */}
-              {contacts.filter(c => c.cost > 0 || c.profit > 0).length > 0 && (
-                <div className="card" style={{ marginTop:16 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                    <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>👥 Subscriber Cost / Profit Breakdown</h3>
-                    <div style={{ fontSize:11,color:'#475569' }}>{contacts.filter(c=>c.cost>0||c.profit>0).length} subscribers</div>
-                  </div>
-                  {/* Summary totals row */}
-                  <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12,padding:'10px 12px',background:'rgba(255,255,255,.03)',borderRadius:8 }}>
-                    <div>
-                      <div style={{ fontSize:10,color:'#475569',fontWeight:700,marginBottom:2 }}>TOTAL COST</div>
-                      <div style={{ fontSize:16,fontWeight:800,color:'#f87171' }}>{fmt(subCosts)}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:10,color:'#475569',fontWeight:700,marginBottom:2 }}>TOTAL REVENUE</div>
-                      <div style={{ fontSize:16,fontWeight:800,color:'#34d399' }}>{fmt(subRevenue)}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:10,color:'#475569',fontWeight:700,marginBottom:2 }}>NET PROFIT</div>
-                      <div style={{ fontSize:16,fontWeight:800,color:(subRevenue-subCosts)>=0?'#34d399':'#f87171' }}>{fmt(subRevenue-subCosts)}</div>
-                    </div>
-                  </div>
-                  {/* Table header */}
-                  <div style={{ display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:8,padding:'6px 10px',background:'rgba(255,255,255,.03)',borderRadius:6,marginBottom:4 }}>
-                    {['Subscriber','Cost','Revenue','Profit'].map(h=>(
-                      <div key={h} style={{ fontSize:10,color:'#475569',fontWeight:700,textTransform:'uppercase' }}>{h}</div>
-                    ))}
-                  </div>
-                  {/* Subscriber rows - sortable by profit */}
-                  <div style={{ maxHeight:400,overflowY:'auto' }}>
-                    {[...contacts]
-                      .filter(c => c.cost > 0 || c.profit > 0)
-                      .sort((a,b) => (b.profit - b.cost) - (a.profit - a.cost))
-                      .map(c => {
-                        const net = c.profit - c.cost
-                        return (
-                          <div key={c.id} style={{ display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:8,padding:'7px 10px',borderBottom:'1px solid rgba(255,255,255,.04)',alignItems:'center',cursor:'pointer' }}
-                            onClick={()=>{ setSelected(c); setView('subscribers') }}>
-                            <div>
-                              <div style={{ fontSize:12,fontWeight:600,color:'#dde4f0' }}>{c.username}</div>
-                              <div style={{ fontSize:10,color:'#475569' }}>{c.email}</div>
-                            </div>
-                            <div style={{ fontSize:12,color:'#f87171',fontWeight:600 }}>{fmt(c.cost)}</div>
-                            <div style={{ fontSize:12,color:'#34d399',fontWeight:600 }}>{fmt(c.profit)}</div>
-                            <div style={{ fontSize:12,fontWeight:700,color:net>=0?'#34d399':'#f87171' }}>{fmt(net)}</div>
-                          </div>
-                        )
-                      })
-                    }
                   </div>
                 </div>
               )}
