@@ -1,15 +1,65 @@
-﻿export const dynamic = 'force-dynamic'
-export async function POST(request) {
+export const dynamic = 'force-dynamic'
+
+import { NextResponse } from 'next/server'
+
+// 1x1 transparent GIF
+const PIXEL = Buffer.from(
+  'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'base64'
+)
+
+const PIXEL_RESPONSE = new NextResponse(PIXEL, {
+  status: 200,
+  headers: {
+    'Content-Type':  'image/gif',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma':        'no-cache',
+    'Expires':       '0',
+  },
+})
+
+export async function GET(request) {
   try {
-    const { createClient } = await import('@supabase/supabase-js')
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!serviceKey) return Response.json({ error: 'Server not configured' }, { status: 500 })
-    const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hpqpzotvcdgpuqtxlczm.supabase.co', serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
-    const { email } = await request.json()
-    if (!email) return Response.json({ error: 'Email required' }, { status: 400 })
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://miitv-crm.vercel.app'
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: appUrl + '/dashboard' })
-    if (error) return Response.json({ error: error.message }, { status: 400 })
-    return Response.json({ success: true, email: data.user?.email })
-  } catch (err) { return Response.json({ error: err.message }, { status: 500 }) }
+    const { searchParams } = new URL(request.url)
+    const emailId = searchParams.get('id')
+
+    if (emailId) {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hpqpzotvcdgpuqtxlczm.supabase.co',
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      )
+
+      const now = new Date().toISOString()
+
+      const { data: existing } = await supabase
+        .from('email_tracking')
+        .select('id, open_count, opened_at')
+        .eq('email_id', emailId)
+        .single()
+
+      if (existing) {
+        await supabase
+          .from('email_tracking')
+          .update({
+            open_count:  (existing.open_count || 0) + 1,
+            opened_at:   existing.opened_at || now,
+            last_opened: now,
+          })
+          .eq('email_id', emailId)
+      }
+    }
+  } catch (_) {
+    // Never let tracking errors affect email rendering
+  }
+
+  return new NextResponse(PIXEL, {
+    status: 200,
+    headers: {
+      'Content-Type':  'image/gif',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma':        'no-cache',
+      'Expires':       '0',
+    },
+  })
 }
