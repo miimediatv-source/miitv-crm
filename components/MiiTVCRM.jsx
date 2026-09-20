@@ -1553,8 +1553,27 @@ export default function MiiTVCRM({ user }) {
                       </select>
                     </div>
                   </div>
+                  {/* Subscriber revenue by tier */}
+                  {(()=>{
+                    const tiers = [1,2,3].map(n => {
+                      const rows = contacts.filter(c => c.status !== 'Expired' && Math.min(Math.max(Number(c.conns)||1,1),3) === n)
+                      return { n, count: rows.length, sum: rows.reduce((t,c)=>t+Number(c.profit||0),0) }
+                    }).filter(t => t.count > 0)
+                    if (tiers.length === 0) return null
+                    return (
+                      <div style={{ marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,.06)' }}>
+                        <div style={{ fontSize:10.5,color:'#475569',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6 }}>Subscriptions (revenue)</div>
+                        {tiers.map(t => (
+                          <div key={t.n} style={{ display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12.5 }}>
+                            <span style={{ color:'#94a3b8' }}>{t.n} connection{t.n>1?'s':''} <span style={{ color:'#475569' }}>· {t.count} subs</span></span>
+                            <span style={{ color:'#34d399',fontWeight:700 }}>{fmt(t.sum)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                   {revenue.length === 0 ? (
-                    <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>No revenue recorded yet</div>
+                    <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>No manual revenue entries</div>
                   ) : [...revenue].sort((a,b)=>{
                       const av = finSort.col==='amount' ? Number(a.amount) : finSort.col==='plan' ? (a.plan||'') : (a.date||'')
                       const bv = finSort.col==='amount' ? Number(b.amount) : finSort.col==='plan' ? (b.plan||'') : (b.date||'')
@@ -1590,8 +1609,27 @@ export default function MiiTVCRM({ user }) {
                       </select>
                     </div>
                   </div>
+                  {/* Subscriber costs by tier */}
+                  {(()=>{
+                    const tiers = [1,2,3].map(n => {
+                      const rows = contacts.filter(c => c.status !== 'Expired' && Math.min(Math.max(Number(c.conns)||1,1),3) === n)
+                      return { n, count: rows.length, sum: rows.reduce((t,c)=>t+Number(c.cost||0),0) }
+                    }).filter(t => t.count > 0)
+                    if (tiers.length === 0) return null
+                    return (
+                      <div style={{ marginBottom:12,paddingBottom:10,borderBottom:'1px solid rgba(255,255,255,.06)' }}>
+                        <div style={{ fontSize:10.5,color:'#475569',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6 }}>Subscriptions (costs)</div>
+                        {tiers.map(t => (
+                          <div key={t.n} style={{ display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:12.5 }}>
+                            <span style={{ color:'#94a3b8' }}>{t.n} connection{t.n>1?'s':''} <span style={{ color:'#475569' }}>· {t.count} subs</span></span>
+                            <span style={{ color:'#f87171',fontWeight:700 }}>{fmt(t.sum)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                   {costs.length === 0 ? (
-                    <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>{subCosts>0 ? 'No manual costs. Subscriber costs ('+fmt(subCosts)+') are included in the totals above.' : 'No costs recorded yet'}</div>
+                    <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>No manual cost entries</div>
                   ) : [...costs].sort((a,b)=>{
                       const av = finSort.col==='amount' ? Number(a.amount) : finSort.col==='category' ? (a.category||'') : (a.date||'')
                       const bv = finSort.col==='amount' ? Number(b.amount) : finSort.col==='category' ? (b.category||'') : (b.date||'')
