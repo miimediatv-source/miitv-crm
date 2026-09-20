@@ -1591,7 +1591,7 @@ export default function MiiTVCRM({ user }) {
                     </div>
                   </div>
                   {costs.length === 0 ? (
-                    <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>No costs recorded yet</div>
+                    <div style={{ color:'#334155',fontSize:13,textAlign:'center',padding:'20px 0' }}>{subCosts>0 ? 'No manual costs. Subscriber costs ('+fmt(subCosts)+') are included in the totals above.' : 'No costs recorded yet'}</div>
                   ) : [...costs].sort((a,b)=>{
                       const av = finSort.col==='amount' ? Number(a.amount) : finSort.col==='category' ? (a.category||'') : (a.date||'')
                       const bv = finSort.col==='amount' ? Number(b.amount) : finSort.col==='category' ? (b.category||'') : (b.date||'')
@@ -1622,20 +1622,21 @@ export default function MiiTVCRM({ user }) {
                 contacts.filter(c => c.profit > 0).forEach(c => {
                   const key = c.expiration?.slice(0,7)
                   if (!key) return
-                  if (!byMonth[key]) byMonth[key] = { subs: [], total: 0 }
+                  if (!byMonth[key]) byMonth[key] = { subs: [], total: 0, cost: 0 }
                   byMonth[key].subs.push(c)
                   byMonth[key].total += Number(c.profit || 0)
+                  byMonth[key].cost += Number(c.cost || 0)
                 })
                 const months = Object.keys(byMonth).sort()
                 const [expandedMonth, setExpandedMonth] = [finSort.expandedMonth || null, (m) => setFinSort(s=>({...s, expandedMonth: m}))]
                 return (
                   <div className="card" style={{ marginBottom:16 }}>
                     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14 }}>
-                      <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>👥 Subscriber Profit by Month</h3>
-                      <span style={{ fontSize:12,color:'#334155' }}>{contacts.filter(c=>c.profit>0).length} subscribers · {fmt(subRevenue)} total</span>
+                      <h3 style={{ fontSize:13,color:'#64748b',fontWeight:700 }}>👥 Subscriber Revenue, Cost &amp; Profit by Month</h3>
+                      <span style={{ fontSize:12,color:'#334155' }}>{contacts.filter(c=>c.profit>0).length} subscribers · {fmt(subRevenue)} revenue · {fmt(subCosts)} cost · {fmt(subRevenue-subCosts)} profit</span>
                     </div>
                     {months.map(month => {
-                      const { subs, total } = byMonth[month]
+                      const { subs, total, cost: monthCost } = byMonth[month]
                       const d = new Date(month + '-01')
                       const label = d.toLocaleDateString('en-GB', { month:'long', year:'numeric' })
                       const isExpanded = expandedMonth === month
@@ -1654,15 +1655,17 @@ export default function MiiTVCRM({ user }) {
                               {isPast && <span style={{ fontSize:10,color:'#334155' }}>Expired</span>}
                             </div>
                             <div style={{ display:'flex',alignItems:'center',gap:12 }}>
-                              <span style={{ fontSize:14,fontWeight:800,color:'#34d399' }}>{fmt(total)}</span>
+                              <span style={{ fontSize:11,color:'#64748b' }}>Rev <b style={{ color:'#34d399' }}>{fmt(total)}</b></span>
+                              <span style={{ fontSize:11,color:'#64748b' }}>Cost <b style={{ color:'#f87171' }}>{fmt(monthCost)}</b></span>
+                              <span style={{ fontSize:14,fontWeight:800,color:(total-monthCost)>=0?'#34d399':'#f87171' }}>{fmt(total-monthCost)}</span>
                               <span style={{ fontSize:11,color:'#475569' }}>{isExpanded?'▲':'▼'}</span>
                             </div>
                           </div>
                           {/* Expanded subscriber list */}
                           {isExpanded && (
                             <div style={{ border:'1px solid rgba(255,255,255,.06)',borderTop:'none',borderRadius:'0 0 8px 8px',overflow:'hidden' }}>
-                              <div style={{ display:'grid',gridTemplateColumns:'2fr 2fr 1fr 1fr',gap:8,padding:'6px 12px',background:'rgba(255,255,255,.02)' }}>
-                                {['Username','Email','Expires','Profit'].map(h=>(
+                              <div style={{ display:'grid',gridTemplateColumns:'2fr 2fr 1fr 1fr 1fr 1fr',gap:8,padding:'6px 12px',background:'rgba(255,255,255,.02)' }}>
+                                {['Username','Email','Expires','Revenue','Cost','Profit'].map(h=>(
                                   <div key={h} style={{ fontSize:10,color:'#475569',fontWeight:700,textTransform:'uppercase' }}>{h}</div>
                                 ))}
                               </div>
@@ -1670,17 +1673,19 @@ export default function MiiTVCRM({ user }) {
                                 const sc = parseStatus(c.expiration)
                                 return (
                                   <div key={c.id} onClick={()=>{ setView('subscribers'); setSelected(c) }}
-                                    style={{ display:'grid',gridTemplateColumns:'2fr 2fr 1fr 1fr',gap:8,padding:'7px 12px',borderTop:'1px solid rgba(255,255,255,.04)',cursor:'pointer',alignItems:'center' }}>
+                                    style={{ display:'grid',gridTemplateColumns:'2fr 2fr 1fr 1fr 1fr 1fr',gap:8,padding:'7px 12px',borderTop:'1px solid rgba(255,255,255,.04)',cursor:'pointer',alignItems:'center' }}>
                                     <div style={{ fontSize:12,fontWeight:600,color:'#dde4f0',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.username}</div>
                                     <div style={{ fontSize:11,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{c.email}</div>
                                     <div style={{ fontSize:11,color:sc==='Expired'?'#f87171':sc==='Expiring Soon'?'#f59e0b':'#64748b',whiteSpace:'nowrap' }}>{fmtDate(c.expiration)}</div>
                                     <div style={{ fontSize:12,fontWeight:700,color:'#34d399' }}>{fmt(c.profit)}</div>
+                                    <div style={{ fontSize:12,fontWeight:700,color:'#f87171' }}>{fmt(c.cost)}</div>
+                                    <div style={{ fontSize:12,fontWeight:700,color:(c.profit-c.cost)>=0?'#34d399':'#f87171' }}>{fmt(c.profit-c.cost)}</div>
                                   </div>
                                 )
                               })}
                               <div style={{ padding:'8px 12px',background:'rgba(52,211,153,.05)',borderTop:'1px solid rgba(52,211,153,.1)',display:'flex',justifyContent:'space-between' }}>
                                 <span style={{ fontSize:11,color:'#475569' }}>Month total</span>
-                                <span style={{ fontSize:13,fontWeight:800,color:'#34d399' }}>{fmt(total)}</span>
+                                <span style={{ fontSize:13,fontWeight:800 }}><span style={{ color:'#34d399' }}>{fmt(total)}</span> <span style={{ color:'#475569' }}>−</span> <span style={{ color:'#f87171' }}>{fmt(monthCost)}</span> <span style={{ color:'#475569' }}>=</span> <span style={{ color:(total-monthCost)>=0?'#34d399':'#f87171' }}>{fmt(total-monthCost)}</span></span>
                               </div>
                             </div>
                           )}
