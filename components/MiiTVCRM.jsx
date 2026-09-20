@@ -152,6 +152,14 @@ function InviteUserForm() {
   )
 }
 
+// ─── SUBSCRIPTION PRICING (used when the Google Sheet has no cost/profit values) ──
+const PRICING = {
+  1: { price: 75,  cost: 20 },
+  2: { price: 120, cost: 30 },
+  3: { price: 150, cost: 40 },
+}
+const tierFor = conns => PRICING[Math.min(Math.max(Number(conns) || 1, 1), 3)]
+
 // ─── EMAIL TEMPLATES ──────────────────────────────────────────────────────────
 const DEFAULT_TEMPLATES = [
   {
@@ -760,8 +768,9 @@ export default function MiiTVCRM({ user }) {
     domain:   getDomain(s.email),
     avatar:   mkAvatar(s.username),
     pal:      i % PALETTES.length,
-    cost:     Number(s.cost || 0),
-    profit:   Number(s.profit || 0),
+    // Sheet values win; otherwise fall back to tier pricing (expired subs excluded from totals)
+    cost:     Number(s.cost || 0) || (parseStatus(s.expiration) === 'Expired' ? 0 : tierFor(s.conns).cost),
+    profit:   Number(s.profit || 0) || (parseStatus(s.expiration) === 'Expired' ? 0 : tierFor(s.conns).price),
     latestNote: activityNotes[s.id] || null,
   })), [subscribers, activityNotes])
 
